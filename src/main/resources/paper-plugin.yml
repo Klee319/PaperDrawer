@@ -1,0 +1,25 @@
+name: PaperDrawers
+version: '1.0.0-SNAPSHOT'
+main: com.example.paperdrawers.PaperDrawersPlugin
+api-version: '1.21'
+author: Developer
+description: Storage Drawers implementation for Paper
+bootstrapper: com.example.paperdrawers.PaperDrawersBootstrap
+
+dependencies:
+  server:
+    floodgate:
+      load: BEFORE
+      required: false
+      join-classpath: true
+
+permissions:
+  paperdrawers.use:
+    description: Allows using drawers and basic commands
+    default: true
+  paperdrawers.give:
+    description: Allows giving drawer items to players
+    default: op
+  paperdrawers.admin:
+    description: Admin commands for PaperDrawers (reload, debug)
+    default: op

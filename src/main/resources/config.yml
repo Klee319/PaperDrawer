@@ -1,0 +1,254 @@
+# ==============================================
+# PaperDrawers 設定ファイル / Configuration File
+# ==============================================
+
+# 一般設定 / General settings
+general:
+  # ドロワーブロックの素材 / Base material for drawer blocks
+  drawer-material: BARREL
+  # デバッグログの有効化 / Enable debug logging
+  debug: false
+
+# ドロワー容量設定（スタック単位）/ Drawer capacity per tier (in stacks)
+# 1スタック = 64アイテム（アイテムにより異なる）
+drawer-capacity:
+  tier-1: 32
+  tier-2: 64
+  tier-3: 128
+  tier-4: 256
+  tier-5: 512
+  tier-6: 1024
+  tier-7: 2048
+
+# 表示設定 / Display settings
+display:
+  # ドロワー上のアイテム表示を有効化 / Enable visual item display on drawers
+  enabled: true
+  # 更新間隔（tick単位、20tick=1秒） / Update interval in ticks (20 ticks = 1 second)
+  update-interval: 5
+  # 表示の最大距離 / Maximum distance for display visibility
+  max-distance: 32
+  # アイテム数を表示 / Show item count on drawers
+  show-count: true
+  # 数値フォーマット: compact (1K, 1M) または full (1000, 1000000)
+  # Count format: compact (1K, 1M) or full (1000, 1000000)
+  count-format: compact
+
+# 統合版/Geyser互換性設定 / Bedrock/Geyser compatibility
+bedrock:
+  # 統合版プレイヤー向けにArmorStandを使用 / Use ArmorStand for Bedrock players instead of ItemDisplay
+  fallback-to-armor-stand: true
+
+# パフォーマンス設定 / Performance settings
+performance:
+  # キャッシュ設定 / Cache settings for in-memory drawer caching
+  cache:
+    # ドロワーキャッシュを有効化 / Enable drawer caching to reduce PDC reads
+    enabled: true
+    # キャッシュの最大サイズ / Maximum number of drawers to keep in cache
+    max-size: 1000
+    # キャッシュの有効期限（ミリ秒、1分=60000ms） / Time in milliseconds before a cached entry expires
+    expire-after-ms: 60000
+
+  # 非同期保存設定 / Async save settings for background data persistence
+  async-save:
+    # 非同期保存を有効化 / Enable async save to reduce main thread blocking
+    enabled: true
+    # 保存キュー処理間隔（tick単位、100tick=5秒） / Interval in ticks between save queue processing
+    interval-ticks: 100
+
+  # 定期メトリクスログ間隔（0で無効化） / Periodic metrics logging (set to 0 to disable)
+  metrics-log-interval-minutes: 5
+
+# ホッパー連携設定 / Hopper integration settings
+hopper:
+  # ホッパー連携を有効化 / Enable hopper integration with drawers
+  enabled: true
+  # ホッパー吸出し間隔（tick単位、8tick=バニラと同速度）
+  # Hopper pull interval in ticks (8 ticks = vanilla hopper speed)
+  pull-interval-ticks: 4
+
+# メッセージ設定 / Messages (supports Japanese/日本語対応)
+# %s はプレースホルダー（アイテム名などに置換）
+messages:
+  # ドロワーキー関連 / Drawer key messages
+  drawer-key:
+    # %s = アイテム名 / %s = item name
+    locked: "ドロワーを「%s」にロックしました！"
+    unlocked: "ドロワーのロックを解除しました！"
+    cannot-lock-empty: "空のスロットはロックできません。先にアイテムを入れてください！"
+  # ドロワー設置関連 / Drawer placement messages
+  drawer:
+    placed: "ドロワーを設置しました"
+    broken: "ドロワーを破壊しました"
+  # エラーメッセージ / Error messages
+  error:
+    no-permission: "権限がありません"
+    invalid-item: "このアイテムは格納できません"
+    placement-failed: "ドロワーの設置に失敗しました。もう一度お試しください。"
+
+# クラフトレシピ設定 / Craft recipe settings
+# shape: Shaped recipe pattern (3 rows, 3 chars each)
+# ingredients: Material mapping for shape characters
+# enabled: Whether this recipe is active
+recipes:
+  drawer-key:
+    enabled: true
+    result-amount: 3
+    shape:
+      - " G "
+      - " S "
+      - " S "
+    ingredients:
+      G: GOLD_NUGGET
+      S: STICK
+  tier-1:
+    enabled: true
+    shape:
+      - "PPP"
+      - "PCP"
+      - "PPP"
+    ingredients:
+      P: OAK_PLANKS
+      C: CHEST
+  tier-2:
+    enabled: true
+    shape:
+      - " I "
+      - "IDI"
+      - " I "
+    ingredients:
+      I: COPPER_INGOT
+      D: PAPER_DRAWERS_TIER_1  # Special: references a drawer tier
+  tier-3:
+    enabled: true
+    shape:
+      - " I "
+      - "IDI"
+      - " I "
+    ingredients:
+      I: IRON_INGOT
+      D: PAPER_DRAWERS_TIER_2
+  tier-4:
+    enabled: true
+    shape:
+      - " I "
+      - "IDI"
+      - " I "
+    ingredients:
+      I: GOLD_INGOT
+      D: PAPER_DRAWERS_TIER_3
+  tier-5:
+    enabled: true
+    shape:
+      - " I "
+      - "IDI"
+      - " I "
+    ingredients:
+      I: DIAMOND
+      D: PAPER_DRAWERS_TIER_4
+  tier-6:
+    enabled: true
+    shape:
+      - " I "
+      - "IDI"
+      - " I "
+    ingredients:
+      I: NETHERITE_INGOT
+      D: PAPER_DRAWERS_TIER_5
+  tier-7:
+    enabled: false
+    shape:
+      - "NNN"
+      - "NDN"
+      - "NNN"
+    ingredients:
+      N: NETHER_STAR
+      D: PAPER_DRAWERS_TIER_6
+  void:
+    enabled: true
+    shape:
+      - "OEO"
+      - "ECE"
+      - "OEO"
+    ingredients:
+      O: OBSIDIAN
+      E: ENDER_PEARL
+      C: CHEST
+
+# ドロワーアイテム表示設定 / Drawer item display settings
+# name: Display name (supports & color codes)
+# lore: Lore lines (supports & color codes and placeholders)
+# Placeholders: {slots}, {capacity_per_slot}, {total_capacity}
+drawer-display:
+  tier-1:
+    name: "&f基本のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-2:
+    name: "&6銅のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-3:
+    name: "&7鉄のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-4:
+    name: "&e金のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-5:
+    name: "&bダイヤのドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-6:
+    name: "&4ネザライトのドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-7:
+    name: "&dクリエイティブドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  void:
+    name: "&8ボイドドロワー"
+    lore:
+      - ""
+      - "&7投入したアイテムを消滅させます"
+      - "&c⚠ アイテムは復元できません"
+      - ""
+      - "&8設置してボイドドロワーを作成"
