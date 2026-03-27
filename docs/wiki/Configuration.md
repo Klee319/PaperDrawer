@@ -1,10 +1,17 @@
 # 設定ファイル
 
-PaperDrawers の全設定は `plugins/PaperDrawers/config.yml` に集約されています。サーバー起動時に自動生成され、`/drawer reload` コマンドで再読み込みが可能です。
+PaperDrawers の設定は以下の **4つのファイル** に分かれています。すべて `plugins/PaperDrawers/` ディレクトリに格納され、サーバー起動時に自動生成されます。`/drawer reload` コマンドで全ファイルの再読み込みが可能です。
+
+| ファイル | 内容 |
+|---------|------|
+| `config.yml` | 一般設定、ドロワー容量、表示設定、Bedrock互換性、パフォーマンス、ホッパー連携 |
+| `recipes.yml` | 全クラフトレシピの定義（有効/無効、形状、素材） |
+| `display.yml` | ドロワーアイテムの表示名・説明文（カラーコード、プレースホルダー） |
+| `messages.yml` | プレイヤー向けメッセージ（ドロワーキー、設置、エラー） |
 
 ---
 
-## config.yml の全設定項目
+## config.yml
 
 ### general（一般設定）
 
@@ -122,6 +129,10 @@ hopper:
 
 ---
 
+---
+
+## messages.yml
+
 ### messages（メッセージ設定）
 
 ゲーム内に表示されるメッセージをカスタマイズできます。`%s` はプレースホルダーです。
@@ -150,6 +161,10 @@ hopper:
 | `messages.error.placement-failed` | `ドロワーの設置に失敗しました。もう一度お試しください。` |
 
 ---
+
+---
+
+## recipes.yml
 
 ### recipes（クラフトレシピ設定）
 
@@ -189,6 +204,10 @@ recipes:
 | sorting-tier-7 | **無効** |
 
 ---
+
+---
+
+## display.yml
 
 ### drawer-display（ドロワーアイテム表示設定）
 

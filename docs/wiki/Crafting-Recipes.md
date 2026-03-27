@@ -1,6 +1,6 @@
 # クラフトレシピ
 
-PaperDrawers の全クラフトレシピを掲載しています。全てのレシピは `config.yml` の `recipes` セクションで個別に有効/無効を切り替えられます。
+PaperDrawers の全クラフトレシピを掲載しています。全てのレシピは `recipes.yml` で個別に有効/無効を切り替えられます。
 
 ---
 
@@ -158,7 +158,7 @@ N = ネザースター (NETHER_STAR)
 D = Tier 6 ドロワー
 ```
 
-> **注意:** このレシピはデフォルトで **無効** です。`config.yml` で `recipes.tier-7.enabled: true` に設定すると有効化されます。
+> **注意:** このレシピはデフォルトで **無効** です。`recipes.yml` で `tier-7.enabled: true` に設定すると有効化されます。
 
 ---
 
@@ -214,7 +214,7 @@ H = ホッパー (HOPPER)
 
 ## レシピの無効化・カスタマイズ
 
-各レシピは `config.yml` の `recipes` セクションで個別に制御できます。
+各レシピは `recipes.yml` で個別に制御できます。
 
 ```yaml
 recipes:
