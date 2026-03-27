@@ -1,0 +1,21 @@
+# ==============================================
+# PaperDrawers メッセージ設定 / Messages Configuration
+# ==============================================
+# %s はプレースホルダー（アイテム名などに置換）
+
+messages:
+  # ドロワーキー関連 / Drawer key messages
+  drawer-key:
+    # %s = アイテム名 / %s = item name
+    locked: "ドロワーを「%s」にロックしました！"
+    unlocked: "ドロワーのロックを解除しました！"
+    cannot-lock-empty: "空のスロットはロックできません。先にアイテムを入れてください！"
+  # ドロワー設置関連 / Drawer placement messages
+  drawer:
+    placed: "ドロワーを設置しました"
+    broken: "ドロワーを破壊しました"
+  # エラーメッセージ / Error messages
+  error:
+    no-permission: "権限がありません"
+    invalid-item: "このアイテムは格納できません"
+    placement-failed: "ドロワーの設置に失敗しました。もう一度お試しください。"

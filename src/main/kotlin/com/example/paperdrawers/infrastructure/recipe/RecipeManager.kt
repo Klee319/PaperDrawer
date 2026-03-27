@@ -5,6 +5,7 @@ import com.example.paperdrawers.infrastructure.item.DrawerItemFactory
 import com.example.paperdrawers.infrastructure.item.DrawerKeyFactory
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
+import org.bukkit.Tag
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.inventory.RecipeChoice
 import org.bukkit.inventory.ShapedRecipe
@@ -54,9 +55,17 @@ class RecipeManager(
     val drawerIngredientRequirements: List<DrawerIngredientRequirement>
         get() = _drawerIngredientRequirements.toList()
 
+    /** 仕分けドロワーレシピキーのセット（DrawerCraftListener で参照） */
+    private val _sortingRecipeKeys = mutableSetOf<NamespacedKey>()
+    val sortingRecipeKeys: Set<NamespacedKey>
+        get() = _sortingRecipeKeys.toSet()
+
     companion object {
         /** ドロワーアイテムを参照する特殊素材プレフィックス */
         private const val DRAWER_INGREDIENT_PREFIX = "PAPER_DRAWERS_TIER_"
+
+        /** Bukkit Tag を参照する素材プレフィックス */
+        private const val TAG_PREFIX = "TAG_"
 
         /** レシピシェイプの行数 */
         private const val SHAPE_ROW_COUNT = 3
@@ -121,7 +130,25 @@ class RecipeManager(
             logger.warning("Failed to register void drawer recipe: ${e.message}")
         }
 
-        logger.fine("Recipes registered: $registeredCount, skipped: $skippedCount")
+        // Register sorting drawer recipes
+        var sortingRegistered = 0
+        for (tier in VALID_TIER_RANGE) {
+            val sortingKey = "sorting-tier-$tier"
+            val sortingSection = configSection.getConfigurationSection(sortingKey)
+
+            if (sortingSection == null || !sortingSection.getBoolean("enabled", true)) {
+                continue
+            }
+
+            try {
+                registerSortingRecipe(tier, sortingSection)
+                sortingRegistered++
+            } catch (e: Exception) {
+                logger.warning("Failed to register sorting recipe for $sortingKey: ${e.message}")
+            }
+        }
+
+        logger.fine("Recipes registered: $registeredCount (+ $sortingRegistered sorting), skipped: $skippedCount")
     }
 
     /**
@@ -143,6 +170,7 @@ class RecipeManager(
         val count = _registeredKeys.size
         _registeredKeys.clear()
         _drawerIngredientRequirements.clear()
+        _sortingRecipeKeys.clear()
         logger.fine("Unregistered $count recipes")
     }
 
@@ -318,22 +346,95 @@ class RecipeManager(
     }
 
     /**
+     * 仕分けドロワーのクラフトレシピを登録する。
+     *
+     * Why: 各Tierのドロワーをコンパレータとホッパーで仕分けドロワーに変換するレシピ。
+     * 結果アイテムは仕分けフラグ付きのドロワーアイテムとなる。
+     * コンテンツの引き継ぎは DrawerCraftListener の PrepareItemCraftEvent で処理する。
+     *
+     * @param tier Tierレベル（1-7）
+     * @param section このTierの仕分けレシピ設定セクション
+     */
+    private fun registerSortingRecipe(tier: Int, section: ConfigurationSection) {
+        val drawerType = DrawerType.fromTier(tier)
+        val resultItem = DrawerItemFactory.createDrawerItem(drawerType, 1, isSorting = true)
+
+        val key = NamespacedKey(plugin, "drawer_sorting_tier_$tier")
+        val recipe = ShapedRecipe(key, resultItem)
+
+        val shapeList = section.getStringList("shape")
+        if (shapeList.size != SHAPE_ROW_COUNT) {
+            throw IllegalArgumentException(
+                "Sorting recipe shape must have exactly $SHAPE_ROW_COUNT rows, but has ${shapeList.size}"
+            )
+        }
+        recipe.shape(*shapeList.toTypedArray())
+
+        val ingredientsSection = section.getConfigurationSection("ingredients")
+            ?: throw IllegalArgumentException("No 'ingredients' section found for sorting-tier-$tier")
+
+        for (charKey in ingredientsSection.getKeys(false)) {
+            if (charKey.length != 1) {
+                logger.warning("Invalid ingredient key '$charKey' in sorting-tier-$tier recipe, skipping.")
+                continue
+            }
+
+            val ingredientChar = charKey[0]
+            val materialString = ingredientsSection.getString(charKey)
+                ?: throw IllegalStateException("Ingredient value for '$charKey' is null in sorting-tier-$tier")
+
+            val recipeChoice = resolveIngredient(materialString)
+                ?: throw IllegalStateException(
+                    "Failed to resolve ingredient '$materialString' for sorting-tier-$tier"
+                )
+
+            recipe.setIngredient(ingredientChar, recipeChoice)
+
+            val trimmedMaterial = materialString.trim()
+            if (trimmedMaterial.startsWith(DRAWER_INGREDIENT_PREFIX)) {
+                val requiredTier = trimmedMaterial.removePrefix(DRAWER_INGREDIENT_PREFIX).toIntOrNull()
+                if (requiredTier != null) {
+                    _drawerIngredientRequirements.add(
+                        DrawerIngredientRequirement(
+                            recipeKey = key,
+                            ingredientChar = ingredientChar,
+                            requiredTier = requiredTier
+                        )
+                    )
+                }
+            }
+        }
+
+        plugin.server.addRecipe(recipe)
+        _registeredKeys.add(key)
+        _sortingRecipeKeys.add(key)
+        logger.fine("Registered sorting recipe for tier-$tier (key: ${key.key})")
+    }
+
+    /**
+     * 指定されたレシピキーが仕分けドロワーレシピかどうかを判定する。
+     *
+     * @param key レシピの NamespacedKey
+     * @return 仕分けレシピの場合 true
+     */
+    fun isSortingRecipe(key: NamespacedKey): Boolean {
+        return key in _sortingRecipeKeys
+    }
+
+    /**
      * 素材文字列をRecipeChoiceに解決する。
      *
      * Why: PAPER_DRAWERS_TIER_X プレフィックスを持つ素材はドロワーアイテムへの参照として解決し、
+     * TAG_X プレフィックスを持つ素材は Bukkit Tag として解決し、
      * 通常の素材名はBukkitのMaterial列挙型から解決する。
-     * これにより、ドロワー同士のアップグレードレシピを実現できる。
      *
-     * @param materialString 素材文字列（Material名 または PAPER_DRAWERS_TIER_X）
+     * @param materialString 素材文字列（Material名、PAPER_DRAWERS_TIER_X、または TAG_X）
      * @return 解決された RecipeChoice、解決不可能な場合はnull
      */
     private fun resolveIngredient(materialString: String): RecipeChoice? {
         val trimmed = materialString.trim()
 
         // ドロワーアイテム参照の場合
-        // Why: ExactChoice は isSimilar() を使用するが、UUID 付きドロワーアイテムは
-        // クリーンな DrawerItem とマッチしない。MaterialChoice(BARREL) を使用し、
-        // PrepareItemCraftEvent で正しい Tier かバリデーションする。
         if (trimmed.startsWith(DRAWER_INGREDIENT_PREFIX)) {
             val tierString = trimmed.removePrefix(DRAWER_INGREDIENT_PREFIX)
             val tierNum = tierString.toIntOrNull()
@@ -343,7 +444,6 @@ class RecipeManager(
                 return null
             }
 
-            // Tier が有効か検証（DrawerType.fromTier が例外を投げないか確認）
             return try {
                 DrawerType.fromTier(tierNum)
                 RecipeChoice.MaterialChoice(Material.BARREL)
@@ -353,6 +453,17 @@ class RecipeManager(
             }
         }
 
+        // Bukkit Tag 参照の場合（例: TAG_PLANKS）
+        if (trimmed.startsWith(TAG_PREFIX)) {
+            val tagName = trimmed.removePrefix(TAG_PREFIX).uppercase()
+            val tag = resolveTag(tagName)
+            if (tag != null) {
+                return RecipeChoice.MaterialChoice(tag)
+            }
+            logger.warning("Unknown tag: '$trimmed'. Supported tags: PLANKS, LOGS, WOODEN_SLABS")
+            return null
+        }
+
         // 通常のMaterial素材の場合
         return try {
             val material = Material.valueOf(trimmed)
@@ -360,6 +471,25 @@ class RecipeManager(
         } catch (e: IllegalArgumentException) {
             logger.warning("Unknown material: '$trimmed'. Check config.yml for valid Bukkit Material names.")
             null
+        }
+    }
+
+    /**
+     * タグ名から Bukkit Tag を解決する。
+     *
+     * Why: TAG_PLANKS のようなプレフィックス付き素材文字列をサポートすることで、
+     * 全種類の木材等をまとめて指定でき、新しい木材が追加された際も自動的に対応できる。
+     *
+     * @param tagName タグ名（例: "PLANKS"）
+     * @return 対応する Tag<Material>、見つからない場合はnull
+     */
+    private fun resolveTag(tagName: String): Tag<Material>? {
+        return when (tagName) {
+            "PLANKS" -> Tag.PLANKS
+            "LOGS" -> Tag.LOGS
+            "WOODEN_SLABS" -> Tag.WOODEN_SLABS
+            "WOOL" -> Tag.WOOL
+            else -> null
         }
     }
 }

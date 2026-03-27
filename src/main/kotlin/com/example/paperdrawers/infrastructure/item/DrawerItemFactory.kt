@@ -58,6 +58,22 @@ object DrawerItemFactory {
         DrawerType.VOID to NamedTextColor.DARK_GRAY              // Void: DARK_GRAY
     )
 
+    /** ドロワーとして使用可能なブロックマテリアルのセット */
+    val DRAWER_MATERIALS: Set<Material> = setOf(Material.BARREL, Material.JUKEBOX)
+
+    /**
+     * ドロワータイプに対応するブロックマテリアルを返す。
+     * ボイドドロワーは JUKEBOX、それ以外は BARREL。
+     */
+    fun materialForType(type: DrawerType): Material {
+        return if (type == DrawerType.VOID) Material.JUKEBOX else Material.BARREL
+    }
+
+    /**
+     * 指定されたマテリアルがドロワー用マテリアルかどうかを判定する。
+     */
+    fun isDrawerMaterial(material: Material): Boolean = material in DRAWER_MATERIALS
+
     /**
      * config.ymlから読み込んだ表示設定。
      *
@@ -93,25 +109,30 @@ object DrawerItemFactory {
      * @return ItemStack configured as a drawer item
      * @throws IllegalArgumentException if amount is not in valid range
      */
-    fun createDrawerItem(type: DrawerType, amount: Int = 1): ItemStack {
+    fun createDrawerItem(type: DrawerType, amount: Int = 1, isSorting: Boolean = false): ItemStack {
         require(amount in 1..64) {
             "Amount must be between 1 and 64, but was: $amount"
         }
 
-        val item = ItemStack(Material.BARREL, amount)
+        val item = ItemStack(materialForType(type), amount)
 
         item.editMeta { meta ->
             // Set display name with Adventure API
-            val displayName = buildDisplayName(type)
+            val displayName = buildDisplayName(type, isSorting)
             meta.displayName(displayName)
 
             // Set lore explaining capacity
-            val lore = buildLore(type)
+            val lore = buildLore(type, isSorting)
             meta.lore(lore)
 
             // Set PDC tag for drawer type identification
             val pdc = meta.persistentDataContainer
             pdc.set(DrawerDataKeys.DRAWER_TYPE, PersistentDataType.STRING, type.name)
+
+            // Set sorting flag if applicable
+            if (isSorting) {
+                pdc.set(DrawerDataKeys.DRAWER_SORTING, PersistentDataType.BYTE, 1.toByte())
+            }
         }
 
         return item
@@ -128,8 +149,8 @@ object DrawerItemFactory {
      * @param slots The list of drawer slots containing stored items
      * @return ItemStack configured as a drawer item with contents
      */
-    fun createDrawerItemWithContents(type: DrawerType, slots: List<DrawerSlot>): ItemStack {
-        val item = createDrawerItem(type)
+    fun createDrawerItemWithContents(type: DrawerType, slots: List<DrawerSlot>, isSorting: Boolean = false): ItemStack {
+        val item = createDrawerItem(type, isSorting = isSorting)
 
         val hasContents = slots.any { !it.isEmpty() || it.isLocked }
 
@@ -172,7 +193,7 @@ object DrawerItemFactory {
             }
 
             // Update lore to show stored contents summary
-            val lore = buildLoreWithContents(type, slots)
+            val lore = buildLoreWithContents(type, slots, isSorting)
             meta.lore(lore)
         }
 
@@ -189,7 +210,7 @@ object DrawerItemFactory {
      * @return true if the item is a drawer item, false otherwise
      */
     fun isDrawerItem(item: ItemStack?): Boolean {
-        if (item == null || item.type != Material.BARREL) {
+        if (item == null || !isDrawerMaterial(item.type)) {
             return false
         }
 
@@ -209,7 +230,7 @@ object DrawerItemFactory {
      * @return The DrawerType if the item is a drawer item, null otherwise
      */
     fun getDrawerType(item: ItemStack?): DrawerType? {
-        if (item == null || item.type != Material.BARREL) {
+        if (item == null || !isDrawerMaterial(item.type)) {
             return null
         }
 
@@ -266,6 +287,74 @@ object DrawerItemFactory {
         return flag != null && flag == 1.toByte()
     }
 
+    /**
+     * Checks if an ItemStack is a sorting drawer item.
+     *
+     * @param item The item to check
+     * @return true if the item is a sorting drawer item
+     */
+    fun isSortingDrawer(item: ItemStack?): Boolean {
+        if (item == null || !isDrawerMaterial(item.type)) return false
+        val meta = item.itemMeta ?: return false
+        val pdc = meta.persistentDataContainer
+        val flag = pdc.get(DrawerDataKeys.DRAWER_SORTING, PersistentDataType.BYTE)
+        return flag != null && flag == 1.toByte()
+    }
+
+    /**
+     * Converts an existing drawer item into a sorting drawer item,
+     * preserving stored contents.
+     *
+     * Why: 仕分けドロワーのクラフト時に、元ドロワーの中身を引き継いだ
+     * 仕分けドロワーアイテムを作成するために使用する。
+     *
+     * @param baseItem 元のドロワーアイテム
+     * @return 仕分けフラグ付きのドロワーアイテム、無効な場合はnull
+     */
+    fun convertToSortingDrawer(baseItem: ItemStack): ItemStack? {
+        val type = getDrawerType(baseItem) ?: return null
+        val result = baseItem.clone().apply { amount = 1 }
+
+        result.editMeta { meta ->
+            val pdc = meta.persistentDataContainer
+            pdc.set(DrawerDataKeys.DRAWER_SORTING, PersistentDataType.BYTE, 1.toByte())
+
+            // Update display name for sorting
+            meta.displayName(buildDisplayName(type, isSorting = true))
+
+            // Rebuild lore for sorting variant
+            // コンテンツ有りの場合もベースloreを仕分け版に差し替え、
+            // その上にコンテンツ情報を追加する
+            val storedSlots = getStoredSlots(baseItem)
+            if (storedSlots != null && storedSlots.isNotEmpty()) {
+                val baseLore = buildLore(type, isSorting = true).toMutableList()
+                baseLore.add(Component.empty())
+                baseLore.add(
+                    Component.text("格納アイテム:")
+                        .color(NamedTextColor.GOLD)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .decoration(TextDecoration.BOLD, true)
+                )
+                for (slot in storedSlots) {
+                    if (slot.storedMaterial == null && !slot.isLocked) continue
+                    val materialName = slot.storedMaterial?.name?.lowercase()?.replace('_', ' ') ?: "空"
+                    val lockIndicator = if (slot.isLocked) " [ロック済]" else ""
+                    val slotText = "  スロット${slot.index + 1}: ${slot.itemCount}個 $materialName$lockIndicator"
+                    baseLore.add(
+                        Component.text(slotText)
+                            .color(NamedTextColor.WHITE)
+                            .decoration(TextDecoration.ITALIC, false)
+                    )
+                }
+                meta.lore(baseLore)
+            } else {
+                meta.lore(buildLore(type, isSorting = true))
+            }
+        }
+
+        return result
+    }
+
     // ========================================
     // Private Helper Methods
     // ========================================
@@ -277,13 +366,14 @@ object DrawerItemFactory {
      * 設定がない場合はハードコードされたデフォルト値を使用する。
      * これにより後方互換性を維持しながらカスタマイズを可能にする。
      */
-    private fun buildDisplayName(type: DrawerType): Component {
+    private fun buildDisplayName(type: DrawerType, isSorting: Boolean = false): Component {
         val config = displayConfig
         if (config != null) {
-            return config.getDisplayName(type)
+            return config.getDisplayName(type, isSorting)
         }
 
-        val name = type.displayName
+        val baseName = type.displayName
+        val name = if (isSorting) baseName.replace("ドロワー", "仕分けドロワー") else baseName
         val color = DISPLAY_COLORS[type] ?: NamedTextColor.WHITE
 
         return Component.text(name)
@@ -298,10 +388,10 @@ object DrawerItemFactory {
      * Why: displayConfig が設定されている場合はそちらに委譲し、
      * 設定がない場合はハードコードされたデフォルト値を使用する。
      */
-    private fun buildLore(type: DrawerType): List<Component> {
+    private fun buildLore(type: DrawerType, isSorting: Boolean = false): List<Component> {
         val config = displayConfig
         if (config != null) {
-            return config.getLore(type)
+            return config.getLore(type, isSorting)
         }
 
         val slotCount = type.getSlotCount()
@@ -344,8 +434,8 @@ object DrawerItemFactory {
      * Why: Players need to see what is stored inside a drawer item
      * before placing it, similar to shulker box tooltips.
      */
-    private fun buildLoreWithContents(type: DrawerType, slots: List<DrawerSlot>): List<Component> {
-        val baseLore = buildLore(type).toMutableList()
+    private fun buildLoreWithContents(type: DrawerType, slots: List<DrawerSlot>, isSorting: Boolean = false): List<Component> {
+        val baseLore = buildLore(type, isSorting).toMutableList()
 
         // 格納アイテムセクション
         baseLore.add(Component.empty())

@@ -62,6 +62,13 @@ class CustomBlockDataDrawerRepository(
             pdc.set(DrawerDataKeys.DRAWER_FACING, PersistentDataType.STRING, drawer.facing.name)
             pdc.set(DrawerDataKeys.DRAWER_CREATED, PersistentDataType.LONG, drawer.createdAt)
 
+            // Sorting flag
+            if (drawer.isSorting) {
+                pdc.set(DrawerDataKeys.DRAWER_SORTING, PersistentDataType.BYTE, 1.toByte())
+            } else {
+                pdc.remove(DrawerDataKeys.DRAWER_SORTING)
+            }
+
             // Owner (optional)
             if (drawer.ownerId != null) {
                 pdc.set(DrawerDataKeys.DRAWER_OWNER, PersistentDataType.STRING, drawer.ownerId.toString())
@@ -363,6 +370,10 @@ class CustomBlockDataDrawerRepository(
         val createdAt = pdc.get(DrawerDataKeys.DRAWER_CREATED, PersistentDataType.LONG)
             ?: System.currentTimeMillis()
 
+        // Load sorting flag
+        val sortingByte = pdc.get(DrawerDataKeys.DRAWER_SORTING, PersistentDataType.BYTE) ?: 0
+        val isSorting = sortingByte != 0.toByte()
+
         // Load slots
         val slots: List<DrawerSlot>
 
@@ -388,7 +399,8 @@ class CustomBlockDataDrawerRepository(
             facing = facing,
             slots = slots,
             ownerId = ownerId,
-            createdAt = createdAt
+            createdAt = createdAt,
+            isSorting = isSorting
         )
 
         // Why: レガシーマイグレーション時はマイグレーション済みデータを再保存して

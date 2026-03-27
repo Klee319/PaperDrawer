@@ -1,0 +1,157 @@
+# ==============================================
+# PaperDrawers ドロワーアイテム表示設定 / Drawer Item Display Configuration
+# ==============================================
+# name: Display name (supports & color codes)
+# lore: Lore lines (supports & color codes and placeholders)
+# Placeholders: {slots}, {capacity_per_slot}, {total_capacity}
+
+drawer-display:
+  tier-1:
+    name: "&f基本のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-2:
+    name: "&6銅のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-3:
+    name: "&7鉄のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-4:
+    name: "&e金のドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-5:
+    name: "&bダイヤのドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-6:
+    name: "&4ネザライトのドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  tier-7:
+    name: "&dクリエイティブドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&8設置してストレージドロワーを作成"
+  void:
+    name: "&8ボイドドロワー"
+    lore:
+      - ""
+      - "&7投入したアイテムを消滅させます"
+      - "&c⚠ アイテムは復元できません"
+      - ""
+      - "&8設置してボイドドロワーを作成"
+  # 仕分けドロワー表示設定 / Sorting drawer display
+  sorting-tier-1:
+    name: "&f基本の仕分けドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&6隣接コンテナからアイテムを自動収集"
+      - ""
+      - "&8設置して仕分けドロワーを作成"
+  sorting-tier-2:
+    name: "&6銅の仕分けドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&6隣接コンテナからアイテムを自動収集"
+      - ""
+      - "&8設置して仕分けドロワーを作成"
+  sorting-tier-3:
+    name: "&7鉄の仕分けドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&6隣接コンテナからアイテムを自動収集"
+      - ""
+      - "&8設置して仕分けドロワーを作成"
+  sorting-tier-4:
+    name: "&e金の仕分けドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&6隣接コンテナからアイテムを自動収集"
+      - ""
+      - "&8設置して仕分けドロワーを作成"
+  sorting-tier-5:
+    name: "&bダイヤの仕分けドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&6隣接コンテナからアイテムを自動収集"
+      - ""
+      - "&8設置して仕分けドロワーを作成"
+  sorting-tier-6:
+    name: "&4ネザライトの仕分けドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&6隣接コンテナからアイテムを自動収集"
+      - ""
+      - "&8設置して仕分けドロワーを作成"
+  sorting-tier-7:
+    name: "&dクリエイティブの仕分けドロワー"
+    lore:
+      - ""
+      - "&7スロット数: &f{slots}"
+      - "&7スロット容量: &f{capacity_per_slot} スタック"
+      - "&7総容量: &f{total_capacity} スタック"
+      - ""
+      - "&6隣接コンテナからアイテムを自動収集"
+      - ""
+      - "&8設置して仕分けドロワーを作成"

@@ -2,6 +2,7 @@ package com.example.paperdrawers.presentation.listener
 
 import com.example.paperdrawers.domain.model.DrawerBlock
 import com.example.paperdrawers.domain.repository.DrawerRepository
+import com.example.paperdrawers.infrastructure.cache.DrawerLocationRegistry
 import com.example.paperdrawers.infrastructure.debug.MetricsCollector
 import com.example.paperdrawers.infrastructure.display.DisplayManager
 import com.example.paperdrawers.infrastructure.item.DrawerItemFactory
@@ -68,7 +69,7 @@ class DrawerBreakListener(
         val drawerItem: org.bukkit.inventory.ItemStack?
         try {
             drawerItem = if (player.gameMode != GameMode.CREATIVE) {
-                val item = DrawerItemFactory.createDrawerItemWithContents(drawer.type, drawer.slots)
+                val item = DrawerItemFactory.createDrawerItemWithContents(drawer.type, drawer.slots, drawer.isSorting)
 
                 // H2: Add unique UUID to prevent stacking of drawers with contents or locked slots
                 if (drawer.hasItems() || drawer.slots.any { it.isLocked }) {
@@ -112,6 +113,7 @@ class DrawerBreakListener(
 
         try {
             repository.delete(block.location)
+            DrawerLocationRegistry.unregister(block.location)
             logger.fine("Drawer deleted from repository: ${drawer.id}")
         } catch (e: Exception) {
             // リポジトリ削除失敗は孤立データが残るが、増殖よりは安全

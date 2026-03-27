@@ -3,6 +3,7 @@ package com.example.paperdrawers.presentation.listener
 import com.example.paperdrawers.domain.model.DrawerBlock
 import com.example.paperdrawers.domain.repository.DrawerPersistenceException
 import com.example.paperdrawers.domain.repository.DrawerRepository
+import com.example.paperdrawers.infrastructure.cache.DrawerLocationRegistry
 import com.example.paperdrawers.infrastructure.display.DisplayManager
 import io.papermc.paper.event.packet.PlayerChunkLoadEvent
 import io.papermc.paper.event.packet.PlayerChunkUnloadEvent
@@ -70,7 +71,12 @@ class ChunkLoadListener(
             "containing ${drawers.size} drawer(s)"
         )
 
-        // Step 3 & 4: Process each drawer
+        // Step 3: Register drawer locations in the registry
+        drawers.forEach { drawer ->
+            DrawerLocationRegistry.register(drawer.location, drawer.isSorting)
+        }
+
+        // Step 4: Process each drawer display for player
         drawers.forEach { drawer ->
             processDrawerForPlayer(drawer, player)
         }

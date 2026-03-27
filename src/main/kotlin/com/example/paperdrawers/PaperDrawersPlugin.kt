@@ -2,6 +2,7 @@ package com.example.paperdrawers
 
 import com.example.paperdrawers.domain.repository.DrawerRepository
 import com.example.paperdrawers.infrastructure.cache.DrawerCache
+import com.example.paperdrawers.infrastructure.cache.DrawerLocationRegistry
 import com.example.paperdrawers.infrastructure.config.DrawerCapacityConfig
 import com.example.paperdrawers.infrastructure.config.DrawerDisplayConfig
 import com.example.paperdrawers.infrastructure.display.DisplayManager
@@ -25,9 +26,12 @@ import com.example.paperdrawers.presentation.listener.DrawerProtectionListener
 import com.example.paperdrawers.presentation.listener.HopperInteractionListener
 import com.example.paperdrawers.presentation.listener.ItemFrameInteractionListener
 import com.example.paperdrawers.infrastructure.hopper.HopperPullTask
+import com.example.paperdrawers.infrastructure.hopper.SortingDrawerPullTask
 import com.jeff_media.customblockdata.CustomBlockData
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.scheduler.BukkitTask
+import java.io.File
 
 /**
  * PaperDrawers プラグインのメインクラス。
@@ -95,6 +99,8 @@ class PaperDrawersPlugin : JavaPlugin() {
      * ホッパー吸出しタスク。
      */
     private var hopperPullTask: BukkitTask? = null
+    private var sortingPullTask: BukkitTask? = null
+
 
     /**
      * クラフトレシピマネージャー。
@@ -103,6 +109,34 @@ class PaperDrawersPlugin : JavaPlugin() {
      * プラグイン無効化時にクリーンアップするために参照を保持する。
      */
     private var recipeManager: RecipeManager? = null
+
+    /**
+     * 分離された設定ファイル（recipes.yml, display.yml, messages.yml）。
+     *
+     * Why: 巨大な config.yml を分割し、各設定を個別ファイルで管理することで
+     * 可読性と保守性を向上させる。
+     */
+    private var recipesConfig: YamlConfiguration? = null
+    private var displayFileConfig: YamlConfiguration? = null
+    private var messagesConfig: YamlConfiguration? = null
+
+    /**
+     * カスタム設定ファイルをロードする。
+     *
+     * Why: Bukkit のデフォルト config.yml 以外の YAML ファイルを
+     * dataFolder から読み込むためのヘルパーメソッド。
+     * ファイルが存在しない場合はリソースからコピーする。
+     *
+     * @param fileName ロードするファイル名
+     * @return ロードされた YamlConfiguration
+     */
+    private fun loadCustomConfig(fileName: String): YamlConfiguration {
+        val file = File(dataFolder, fileName)
+        if (!file.exists()) {
+            saveResource(fileName, false)
+        }
+        return YamlConfiguration.loadConfiguration(file)
+    }
 
     // ========================================
     // Plugin Lifecycle Methods
@@ -184,12 +218,13 @@ class PaperDrawersPlugin : JavaPlugin() {
                 displayManager.cleanup()
             }
 
-            // Step 5: Clear cache
+            // Step 5: Clear cache and location registry
             drawerCache?.let { cache ->
                 val stats = cache.getStats()
                 logger.fine("Final cache stats: $stats")
                 cache.invalidateAll()
             }
+            DrawerLocationRegistry.clear()
 
             logger.info("PaperDrawers plugin disabled successfully!")
         } catch (e: Exception) {
@@ -211,8 +246,13 @@ class PaperDrawersPlugin : JavaPlugin() {
         // Reload config from disk
         reloadConfig()
 
+        // Load sub-configs (recipes.yml, display.yml, messages.yml)
+        recipesConfig = loadCustomConfig("recipes.yml")
+        displayFileConfig = loadCustomConfig("display.yml")
+        messagesConfig = loadCustomConfig("messages.yml")
+
         // Log loaded configuration
-        logger.fine("Configuration loaded from config.yml")
+        logger.fine("Configuration loaded from config.yml, recipes.yml, display.yml, messages.yml")
     }
 
     /**
@@ -233,7 +273,7 @@ class PaperDrawersPlugin : JavaPlugin() {
         }
 
         if (!MessageManager.isInitialized()) {
-            MessageManager.initialize(this, logger)
+            MessageManager.initialize(this, logger, messagesConfig)
             logger.fine("MessageManager initialized")
         }
     }
@@ -264,9 +304,9 @@ class PaperDrawersPlugin : JavaPlugin() {
         DrawerCapacityConfig.initialize(config.getConfigurationSection("drawer-capacity"))
         logger.fine("DrawerCapacityConfig initialized")
 
-        // Initialize DrawerDisplayConfig from config.yml
+        // Initialize DrawerDisplayConfig from display.yml
         val drawerDisplayConfig = DrawerDisplayConfig(
-            configSection = config.getConfigurationSection("drawer-display"),
+            configSection = displayFileConfig?.getConfigurationSection("drawer-display"),
             logger = logger
         )
         DrawerItemFactory.initialize(drawerDisplayConfig)
@@ -293,9 +333,9 @@ class PaperDrawersPlugin : JavaPlugin() {
             }
         }
 
-        // Initialize RecipeManager and register craft recipes
+        // Initialize RecipeManager and register craft recipes from recipes.yml
         recipeManager = RecipeManager(this, logger).also { manager ->
-            manager.registerRecipes(config.getConfigurationSection("recipes"))
+            manager.registerRecipes(recipesConfig?.getConfigurationSection("recipes"))
         }
         logger.fine("RecipeManager initialized")
     }
@@ -420,7 +460,7 @@ class PaperDrawersPlugin : JavaPlugin() {
 
         // HopperInteractionListener を登録（ホッパーからドロワーへのアイテム搬入）
         server.pluginManager.registerEvents(
-            HopperInteractionListener(drawerRepository, displayManager, logger),
+            HopperInteractionListener(drawerRepository, logger),
             this
         )
 
@@ -475,6 +515,15 @@ class PaperDrawersPlugin : JavaPlugin() {
             )
             logger.fine("Hopper pull task started (interval: ${hopperInterval} ticks)")
         }
+
+        // Start sorting drawer pull task (every tick for fast item capture)
+        sortingPullTask = server.scheduler.runTaskTimer(
+            this,
+            SortingDrawerPullTask(drawerRepository, displayManager, this, logger),
+            1L,
+            1L
+        )
+        logger.fine("Sorting drawer pull task started (interval: 1 tick)")
     }
 
     /**
@@ -489,6 +538,9 @@ class PaperDrawersPlugin : JavaPlugin() {
 
         hopperPullTask?.cancel()
         hopperPullTask = null
+
+        sortingPullTask?.cancel()
+        sortingPullTask = null
 
         logger.fine("Background tasks stopped")
     }
@@ -527,6 +579,7 @@ class PaperDrawersPlugin : JavaPlugin() {
                     val drawers = drawerRepository.findByChunk(chunk)
                     for (drawer in drawers) {
                         totalDrawers++
+                        DrawerLocationRegistry.register(drawer.location, drawer.isSorting)
                         if (!displayManager.hasDisplay(drawer)) {
                             displayManager.createDisplay(drawer)
                             totalDisplaysCreated++
@@ -538,7 +591,7 @@ class PaperDrawersPlugin : JavaPlugin() {
             }
         }
 
-        logger.fine("Restored $totalDisplaysCreated displays for $totalDrawers drawers")
+        logger.fine("Restored $totalDisplaysCreated displays for $totalDrawers drawers (registry: ${DrawerLocationRegistry.size()} locations)")
     }
 
     /**
@@ -586,18 +639,21 @@ class PaperDrawersPlugin : JavaPlugin() {
         // Reload capacity config
         DrawerCapacityConfig.initialize(config.getConfigurationSection("drawer-capacity"))
 
-        // Reload display config
+        // Reload display config from display.yml
         val displayConfig = DrawerDisplayConfig(
-            config.getConfigurationSection("drawer-display"),
+            displayFileConfig?.getConfigurationSection("drawer-display"),
             logger
         )
         DrawerItemFactory.initialize(displayConfig)
 
-        // Reload recipes
-        recipeManager?.unregisterAll()
-        recipeManager?.registerRecipes(config.getConfigurationSection("recipes"))
+        // Reload messages config
+        MessageManager.initialize(this, logger, messagesConfig)
 
-        logger.info("Configuration reloaded")
+        // Reload recipes from recipes.yml
+        recipeManager?.unregisterAll()
+        recipeManager?.registerRecipes(recipesConfig?.getConfigurationSection("recipes"))
+
+        logger.info("Configuration reloaded (config.yml, recipes.yml, display.yml, messages.yml)")
     }
 
     /**
@@ -629,6 +685,7 @@ class PaperDrawersPlugin : JavaPlugin() {
 
         /** デフォルトのホッパー吸出し間隔（tick）- バニラホッパー速度と同じ8tick */
         private const val DEFAULT_HOPPER_PULL_INTERVAL_TICKS: Long = 8L
+
 
         /**
          * プラグインインスタンスを取得する。

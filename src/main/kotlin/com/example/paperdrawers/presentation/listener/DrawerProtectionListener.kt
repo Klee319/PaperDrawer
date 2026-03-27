@@ -1,6 +1,7 @@
 package com.example.paperdrawers.presentation.listener
 
 import com.example.paperdrawers.domain.repository.DrawerRepository
+import com.example.paperdrawers.infrastructure.item.DrawerItemFactory
 import org.bukkit.Material
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -45,7 +46,7 @@ class DrawerProtectionListener(
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onBlockExplode(event: BlockExplodeEvent) {
         val removedCount = event.blockList().removeIf { block ->
-            block.type == Material.BARREL && repository.findByLocation(block.location) != null
+            DrawerItemFactory.isDrawerMaterial(block.type) && repository.findByLocation(block.location) != null
         }
 
         if (removedCount) {
@@ -68,7 +69,7 @@ class DrawerProtectionListener(
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onEntityExplode(event: EntityExplodeEvent) {
         val removedCount = event.blockList().removeIf { block ->
-            block.type == Material.BARREL && repository.findByLocation(block.location) != null
+            DrawerItemFactory.isDrawerMaterial(block.type) && repository.findByLocation(block.location) != null
         }
 
         if (removedCount) {

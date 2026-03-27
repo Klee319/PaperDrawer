@@ -3,7 +3,9 @@ package com.example.paperdrawers.presentation.listener
 import com.example.paperdrawers.domain.model.DrawerBlock
 import com.example.paperdrawers.domain.model.DrawerSlot
 import com.example.paperdrawers.domain.model.DrawerType
+import com.example.paperdrawers.infrastructure.config.DrawerCapacityConfig
 import com.example.paperdrawers.domain.repository.DrawerRepository
+import com.example.paperdrawers.infrastructure.cache.DrawerLocationRegistry
 import com.example.paperdrawers.infrastructure.debug.MetricsCollector
 import com.example.paperdrawers.infrastructure.display.DisplayManager
 import com.example.paperdrawers.infrastructure.item.DrawerItemFactory
@@ -45,7 +47,7 @@ class DrawerPlaceListener(
          * Why: 設定可能にすることで、将来的にバレル以外のブロックを
          * ドロワーとして使用する拡張が可能になる。
          */
-        val DRAWER_MATERIALS: Set<Material> = setOf(Material.BARREL)
+        val DRAWER_MATERIALS: Set<Material> = DrawerItemFactory.DRAWER_MATERIALS
     }
 
     /**
@@ -84,12 +86,17 @@ class DrawerPlaceListener(
             // Step 3: Determine drawer facing based on player direction
             val facing = getPlayerFacingDirection(player)
 
+            // Step 3.5: Check if item is a sorting drawer
+            val isSorting = DrawerItemFactory.isSortingDrawer(itemInHand)
+
             // Step 4: Create DrawerBlock
             val baseDrawer = DrawerBlock.create(
                 location = block.location,
                 type = drawerType,
                 facing = facing,
-                ownerId = player.uniqueId
+                ownerId = player.uniqueId,
+                isSorting = isSorting,
+                capacityStacks = DrawerCapacityConfig.getCapacity(drawerType)
             )
 
             // Step 4.5: Restore stored contents from item PDC (shulker-box behavior)
@@ -101,7 +108,20 @@ class DrawerPlaceListener(
                 baseDrawer
             }
 
+            // Step 4.6: ジュークボックス型（ボイドドロワー）のバニラ状態を初期化
+            // Why: バニラのジュークボックスはディスク挿入・再生・コンパレータ出力等の
+            // 機能を持つため、ドロワーとして使用する際はこれらを無効化する必要がある
+            if (block.type == Material.JUKEBOX) {
+                val jukebox = block.state as? org.bukkit.block.Jukebox
+                if (jukebox != null) {
+                    jukebox.setRecord(null)
+                    jukebox.stopPlaying()
+                    jukebox.update()
+                }
+            }
+
             repository.save(drawer)
+            DrawerLocationRegistry.register(drawer.location, drawer.isSorting)
             logger.fine("Drawer saved to repository: ${drawer.id} at ${drawer.getLocationKey()}")
 
             // Step 5: Create display entities

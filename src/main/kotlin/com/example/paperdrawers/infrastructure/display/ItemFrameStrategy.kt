@@ -6,6 +6,7 @@ import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.Rotation
 import org.bukkit.block.BlockFace
+import org.bukkit.entity.GlowItemFrame
 import org.bukkit.entity.ItemFrame
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -78,7 +79,7 @@ class ItemFrameStrategy(
         val displayLocation = calculateSlotDisplayLocation(drawer, slotIndex)
 
         return try {
-            val itemFrame = world.spawn(displayLocation, ItemFrame::class.java) { frame ->
+            val itemFrame = world.spawn(displayLocation, GlowItemFrame::class.java) { frame ->
                 configureItemFrame(frame, drawer, slotIndex, slot.storedItemTemplate ?: ItemStack(material, 1))
             }
 

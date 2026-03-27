@@ -4,6 +4,7 @@ import com.example.paperdrawers.domain.model.DrawerBlock
 import com.example.paperdrawers.domain.model.DrawerType
 import com.example.paperdrawers.domain.repository.DrawerPersistenceException
 import com.example.paperdrawers.domain.repository.DrawerRepository
+import com.example.paperdrawers.infrastructure.config.DrawerCapacityConfig
 import org.bukkit.Location
 import org.bukkit.block.BlockFace
 import java.util.UUID
@@ -128,7 +129,8 @@ class CreateDrawerUseCase(
                 location = request.location,
                 type = request.type,
                 facing = request.facing,
-                ownerId = request.ownerUuid
+                ownerId = request.ownerUuid,
+                capacityStacks = DrawerCapacityConfig.getCapacity(request.type)
             )
         } catch (e: IllegalArgumentException) {
             logger.fine { "Drawer creation validation failed: ${e.message}" }

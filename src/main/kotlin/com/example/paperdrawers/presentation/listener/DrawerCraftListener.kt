@@ -5,6 +5,7 @@ import com.example.paperdrawers.infrastructure.recipe.RecipeManager
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.inventory.PrepareItemCraftEvent
+import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.ShapedRecipe
 import java.util.logging.Logger
 
@@ -17,6 +18,9 @@ import java.util.logging.Logger
  * この問題を回避するため、レシピには MaterialChoice(BARREL) を使用し、
  * このリスナーで実際のドロワー Tier を PDC タグから検証する。
  *
+ * また、仕分けドロワーレシピの場合は元ドロワーの中身を引き継いだ
+ * 仕分けドロワーアイテムを結果として設定する。
+ *
  * @property recipeManager ドロワー素材の要件情報を持つ RecipeManager
  * @property logger ログ出力用ロガー
  */
@@ -27,10 +31,6 @@ class DrawerCraftListener(
 
     /**
      * クラフト準備イベントを処理し、ドロワー素材の Tier を検証する。
-     *
-     * Why: MaterialChoice(BARREL) はすべてのバレルにマッチしてしまうため、
-     * クラフトグリッド内のバレルが正しい Tier のドロワーであるかを
-     * PDC タグで検証し、不正な場合はクラフト結果を無効化する。
      *
      * @param event クラフト準備イベント
      */
@@ -44,12 +44,12 @@ class DrawerCraftListener(
 
         if (requirements.isEmpty()) return
 
-        // クラフトマトリクスを取得（index 0 は結果スロットなので matrix は index 1 から）
+        // クラフトマトリクスを取得
         val matrix = event.inventory.matrix
         val shape = recipe.shape
 
+        // Tier バリデーション
         for (req in requirements) {
-            // シェイプ内で要件文字が出現する位置を検証
             for (row in shape.indices) {
                 for (col in shape[row].indices) {
                     if (shape[row][col] != req.ingredientChar) continue
@@ -61,12 +61,33 @@ class DrawerCraftListener(
 
                     val drawerType = DrawerItemFactory.getDrawerType(itemInSlot)
                     if (drawerType == null || drawerType.tier != req.requiredTier) {
-                        // 通常のバレルまたは間違った Tier のドロワー -> クラフト不可
                         event.inventory.result = null
                         return
                     }
                 }
             }
+        }
+
+        // 仕分けドロワーレシピの場合：元ドロワーの中身を引き継ぐ
+        if (recipeManager.isSortingRecipe(recipe.key)) {
+            handleSortingRecipeResult(event, matrix)
+        }
+    }
+
+    /**
+     * 仕分けドロワーレシピの結果アイテムに元ドロワーの中身を引き継ぐ。
+     *
+     * Why: 仕分けドロワーへの変換時に格納アイテムを失わないようにするため、
+     * クラフトグリッド内のドロワーアイテムから中身を読み取り、
+     * 仕分けドロワーアイテムにコピーする。
+     */
+    private fun handleSortingRecipeResult(event: PrepareItemCraftEvent, matrix: Array<out ItemStack?>) {
+        val drawerItem = matrix.filterNotNull().firstOrNull { DrawerItemFactory.isDrawerItem(it) }
+            ?: return
+
+        val result = DrawerItemFactory.convertToSortingDrawer(drawerItem)
+        if (result != null) {
+            event.inventory.result = result
         }
     }
 }

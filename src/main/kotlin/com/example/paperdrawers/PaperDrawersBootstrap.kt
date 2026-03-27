@@ -54,6 +54,10 @@ class PaperDrawersBootstrap : PluginBootstrap {
                                                 listOf("basic", "copper", "iron", "gold", "diamond", "netherite", "creative", "void").forEach {
                                                     builder.suggest(it)
                                                 }
+                                                // 仕分けドロワー
+                                                listOf("sorting-tier1", "sorting-tier2", "sorting-tier3", "sorting-tier4", "sorting-tier5", "sorting-tier6", "sorting-tier7").forEach {
+                                                    builder.suggest(it)
+                                                }
                                                 builder.buildFuture()
                                             }
                                             .executes { ctx ->
@@ -139,18 +143,23 @@ class PaperDrawersBootstrap : PluginBootstrap {
             return
         }
 
-        val drawerType = parseDrawerType(type)
+        // 仕分けドロワーの場合: sorting-tierX 形式
+        val isSorting = type.startsWith("sorting-", ignoreCase = true)
+        val actualType = if (isSorting) type.removePrefix("sorting-").removePrefix("Sorting-") else type
+
+        val drawerType = parseDrawerType(actualType)
         if (drawerType == null) {
             source.sender.sendMessage("§cInvalid drawer type: $type")
-            source.sender.sendMessage("§7Valid types: tier1-tier7, basic, copper, iron, gold, diamond, netherite, creative")
+            source.sender.sendMessage("§7Valid types: tier1-tier7, basic, copper, iron, gold, diamond, netherite, creative, sorting-tier1-7")
             return
         }
 
         val factory = com.example.paperdrawers.infrastructure.item.DrawerItemFactory
-        val item = factory.createDrawerItem(drawerType, amount)
+        val item = factory.createDrawerItem(drawerType, amount, isSorting = isSorting)
         player.inventory.addItem(item)
 
-        source.sender.sendMessage("§aGave ${amount}x ${drawerType.name} Drawer to ${player.name}")
+        val prefix = if (isSorting) "Sorting " else ""
+        source.sender.sendMessage("§aGave ${amount}x ${prefix}${drawerType.name} Drawer to ${player.name}")
     }
 
     private fun executeReloadCommand(source: CommandSourceStack) {

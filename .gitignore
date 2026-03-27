@@ -8,3 +8,6 @@ build/
 .idea/
 *.log
 local.properties
+.claude/
+apache-maven-3.9.6/
+wiki.md

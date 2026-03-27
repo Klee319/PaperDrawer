@@ -41,13 +41,18 @@ class DrawerDisplayConfig(
      * @param type 対象のドロワータイプ
      * @return 表示名のComponentオブジェクト（BOLDデコレーション付き、ITALIC無効）
      */
-    fun getDisplayName(type: DrawerType): Component {
-        val tierKey = if (type == DrawerType.VOID) "void" else "tier-${type.tier}"
+    fun getDisplayName(type: DrawerType, isSorting: Boolean = false): Component {
+        val tierKey = when {
+            type == DrawerType.VOID -> "void"
+            isSorting -> "sorting-tier-${type.tier}"
+            else -> "tier-${type.tier}"
+        }
         val nameString = configSection?.getConfigurationSection(tierKey)?.getString("name")
 
         if (nameString == null) {
-            logger.fine("No display name config for $tierKey, using default: ${type.displayName}")
-            return buildDefaultDisplayName(type)
+            val fallbackName = if (isSorting) type.displayName.replace("ドロワー", "仕分けドロワー") else type.displayName
+            logger.fine("No display name config for $tierKey, using default: $fallbackName")
+            return buildDefaultDisplayName(type, isSorting)
         }
 
         return LEGACY_SERIALIZER.deserialize(nameString)
@@ -64,8 +69,12 @@ class DrawerDisplayConfig(
      * @param type 対象のドロワータイプ
      * @return lore行のComponentリスト（各行 ITALIC無効）
      */
-    fun getLore(type: DrawerType): List<Component> {
-        val tierKey = if (type == DrawerType.VOID) "void" else "tier-${type.tier}"
+    fun getLore(type: DrawerType, isSorting: Boolean = false): List<Component> {
+        val tierKey = when {
+            type == DrawerType.VOID -> "void"
+            isSorting -> "sorting-tier-${type.tier}"
+            else -> "tier-${type.tier}"
+        }
         val loreStrings = configSection?.getConfigurationSection(tierKey)?.getStringList("lore")
 
         if (loreStrings.isNullOrEmpty()) {
@@ -98,8 +107,9 @@ class DrawerDisplayConfig(
      * Why: config.ymlに設定がない場合のフォールバック。
      * DrawerType.displayName をそのまま使用する。
      */
-    private fun buildDefaultDisplayName(type: DrawerType): Component {
-        return Component.text(type.displayName)
+    private fun buildDefaultDisplayName(type: DrawerType, isSorting: Boolean = false): Component {
+        val name = if (isSorting) type.displayName.replace("ドロワー", "仕分けドロワー") else type.displayName
+        return Component.text(name)
             .decoration(TextDecoration.BOLD, true)
             .decoration(TextDecoration.ITALIC, false)
     }

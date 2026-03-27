@@ -1,6 +1,5 @@
 package com.example.paperdrawers.domain.model
 
-import com.example.paperdrawers.infrastructure.config.DrawerCapacityConfig
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.block.BlockFace
@@ -28,7 +27,8 @@ data class DrawerBlock(
     val facing: BlockFace,
     val slots: List<DrawerSlot>,
     val ownerId: UUID? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val isSorting: Boolean = false
 ) {
     init {
         require(slots.size == type.getSlotCount()) {
@@ -308,14 +308,20 @@ data class DrawerBlock(
          * @param ownerId 所有者のUUID（オプション）
          * @return 新しいドロワーブロック
          */
+        /**
+         * @param capacityStacks 各スロットの容量（スタック単位）。
+         *   呼び出し元で DrawerCapacityConfig.getCapacity(type) を渡すこと。
+         */
         fun create(
             location: Location,
             type: DrawerType,
             facing: BlockFace,
-            ownerId: UUID? = null
+            ownerId: UUID? = null,
+            isSorting: Boolean = false,
+            capacityStacks: Int
         ): DrawerBlock {
             val slots = (0 until type.getSlotCount()).map { index ->
-                DrawerSlot.create(index, DrawerCapacityConfig.getCapacity(type))
+                DrawerSlot.create(index, capacityStacks)
             }
 
             return DrawerBlock(
@@ -325,7 +331,8 @@ data class DrawerBlock(
                 facing = facing,
                 slots = slots,
                 ownerId = ownerId,
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                isSorting = isSorting
             )
         }
     }

@@ -77,6 +77,12 @@ object DrawerDataKeys {
         NamespacedKey(pluginInstance, "drawer_has_contents")
     }
 
+    /** Flag indicating the drawer is a sorting drawer (BYTE: 1 = sorting) */
+    val DRAWER_SORTING: NamespacedKey by lazy {
+        requireInitialized()
+        NamespacedKey(pluginInstance, "drawer_sorting")
+    }
+
     // ========================================
     // Slot Data Keys (Dynamic Generation)
     // ========================================
