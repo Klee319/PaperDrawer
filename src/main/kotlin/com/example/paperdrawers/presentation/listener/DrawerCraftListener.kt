@@ -38,17 +38,13 @@ class DrawerCraftListener(
     fun onPrepareCraft(event: PrepareItemCraftEvent) {
         val recipe = event.recipe as? ShapedRecipe ?: return
 
-        // このレシピに対するドロワー素材要件を取得
-        val requirements = recipeManager.drawerIngredientRequirements
-            .filter { it.recipeKey == recipe.key }
-
-        if (requirements.isEmpty()) return
-
-        // クラフトマトリクスを取得
         val matrix = event.inventory.matrix
         val shape = recipe.shape
 
-        // Tier バリデーション
+        // === Phase 1: レシピキーベースの Tier バリデーション ===
+        val requirements = recipeManager.drawerIngredientRequirements
+            .filter { it.recipeKey == recipe.key }
+
         for (req in requirements) {
             for (row in shape.indices) {
                 for (col in shape[row].indices) {
@@ -68,7 +64,33 @@ class DrawerCraftListener(
             }
         }
 
-        // 仕分けドロワーレシピの場合：元ドロワーの中身を引き継ぐ
+        // === Phase 2: 汎用ドロワー Tier バリデーション（Phase 1 の安全ネット） ===
+        // レシピキーの不一致等で Phase 1 がスキップされても、
+        // クラフトグリッド内のドロワーの Tier を結果アイテムに対して検証する
+        val resultItem = event.inventory.result
+        if (resultItem != null) {
+            val resultDrawerType = DrawerItemFactory.getDrawerType(resultItem)
+            if (resultDrawerType != null) {
+                val isSortingResult = DrawerItemFactory.isSortingDrawer(resultItem)
+
+                for (item in matrix) {
+                    if (item == null) continue
+                    val inputType = DrawerItemFactory.getDrawerType(item) ?: continue
+
+                    // 仕分けレシピ: 同じ Tier が必要
+                    // アップグレードレシピ: 1つ下の Tier が必要
+                    val expectedTier = if (isSortingResult) resultDrawerType.tier else resultDrawerType.tier - 1
+
+                    if (inputType.tier != expectedTier) {
+                        logger.fine("DrawerCraftListener: Tier mismatch - input=${inputType.tier}, expected=$expectedTier, result=${resultDrawerType.tier}")
+                        event.inventory.result = null
+                        return
+                    }
+                }
+            }
+        }
+
+        // === Phase 3: 仕分けドロワーレシピの中身引き継ぎ ===
         if (recipeManager.isSortingRecipe(recipe.key)) {
             handleSortingRecipeResult(event, matrix)
         }
