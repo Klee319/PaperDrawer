@@ -182,17 +182,21 @@ class DrawerInteractionListener(
 
         // ドロワーブロックの場合、右クリックでは樽GUIを開かないようにする
         // 左クリックはブロック破壊を許可するためキャンセルしない
-        // Cancel event to prevent opening barrel GUI (only for right-click)
         if (action == Action.RIGHT_CLICK_BLOCK) {
+            // バレルGUIの開放を全面で防止
             event.setUseInteractedBlock(Event.Result.DENY)
-            event.setUseItemInHand(Event.Result.DENY)
         }
 
         // Step 2: Check if clicked face matches drawer facing
         if (blockFace != drawer.facing) {
-            // Player clicked on a side/back/top/bottom of the drawer, not the front
-            // GUIは開かないが、ドロワー操作は行わない
+            // 正面以外: ドロワー操作は行わず、手持ちアイテムの使用は許可
+            // Why: 正面以外ではブロック設置等の通常操作を妨げない
             return
+        }
+
+        // 正面クリック: 手持ちアイテムの使用をキャンセル（ドロワー操作に切り替え）
+        if (action == Action.RIGHT_CLICK_BLOCK) {
+            event.setUseItemInHand(Event.Result.DENY)
         }
 
         // Step 2.5: For left-click on front face, check if click is on the edge
