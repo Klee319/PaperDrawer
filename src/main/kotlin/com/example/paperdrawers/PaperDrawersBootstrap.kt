@@ -58,6 +58,8 @@ class PaperDrawersBootstrap : PluginBootstrap {
                                                 listOf("sorting-tier1", "sorting-tier2", "sorting-tier3", "sorting-tier4", "sorting-tier5", "sorting-tier6", "sorting-tier7").forEach {
                                                     builder.suggest(it)
                                                 }
+                                                // ドロワーキー
+                                                builder.suggest("key")
                                                 builder.buildFuture()
                                             }
                                             .executes { ctx ->
@@ -106,23 +108,6 @@ class PaperDrawersBootstrap : PluginBootstrap {
                                 1
                             }
                     )
-                    .then(
-                        // /drawer key [amount]
-                        Commands.literal("key")
-                            .requires { source -> source.sender.hasPermission("paperdrawers.give") }
-                            .executes { ctx ->
-                                executeKeyCommand(ctx.source, 1)
-                                1
-                            }
-                            .then(
-                                Commands.argument("amount", IntegerArgumentType.integer(1, 64))
-                                    .executes { ctx ->
-                                        val amount = IntegerArgumentType.getInteger(ctx, "amount")
-                                        executeKeyCommand(ctx.source, amount)
-                                        1
-                                    }
-                            )
-                    )
                     .build(),
                 "PaperDrawers main command",
                 listOf("drawers", "pd")
@@ -143,6 +128,14 @@ class PaperDrawersBootstrap : PluginBootstrap {
             return
         }
 
+        // ドロワーキーの場合
+        if (type.equals("key", ignoreCase = true)) {
+            val keyItem = com.example.paperdrawers.infrastructure.item.DrawerKeyFactory.createDrawerKey(amount)
+            player.inventory.addItem(keyItem)
+            source.sender.sendMessage("§aGave ${amount}x Drawer Key to ${player.name}")
+            return
+        }
+
         // 仕分けドロワーの場合: sorting-tierX 形式
         val isSorting = type.startsWith("sorting-", ignoreCase = true)
         val actualType = if (isSorting) type.removePrefix("sorting-").removePrefix("Sorting-") else type
@@ -150,7 +143,7 @@ class PaperDrawersBootstrap : PluginBootstrap {
         val drawerType = parseDrawerType(actualType)
         if (drawerType == null) {
             source.sender.sendMessage("§cInvalid drawer type: $type")
-            source.sender.sendMessage("§7Valid types: tier1-tier7, basic, copper, iron, gold, diamond, netherite, creative, sorting-tier1-7")
+            source.sender.sendMessage("§7Valid types: tier1-tier7, basic, copper, iron, gold, diamond, netherite, creative, void, sorting-tier1-7, key")
             return
         }
 
@@ -208,19 +201,6 @@ class PaperDrawersBootstrap : PluginBootstrap {
 
         val newState = if (!currentDebug) "§aenabled" else "§cdisabled"
         source.sender.sendMessage("§6Debug mode $newState")
-    }
-
-    private fun executeKeyCommand(source: CommandSourceStack, amount: Int) {
-        val sender = source.sender
-        if (sender !is org.bukkit.entity.Player) {
-            sender.sendMessage("§cThis command can only be used by players")
-            return
-        }
-
-        val factory = com.example.paperdrawers.infrastructure.item.DrawerKeyFactory
-        val key = factory.createDrawerKey(amount)
-        sender.inventory.addItem(key)
-        sender.sendMessage("§aReceived ${amount}x Drawer Key")
     }
 
     /**
