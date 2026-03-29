@@ -74,13 +74,23 @@ class DrawerCraftListener(
         }
 
         // === Phase 2: 汎用ドロワー Tier バリデーション（Phase 1 の安全ネット） ===
+        // ドロワー素材（バレル/ジュークボックス）がグリッド内にある場合、
+        // それが正しいティアのドロワーであることを検証する。
+        // 通常のバレル（PDCタグなし）はドロワーではないため拒否する。
         val resultItem = event.inventory.result
         if (resultItem != null) {
             val resultDrawerType = DrawerItemFactory.getDrawerType(resultItem)
             if (resultDrawerType != null) {
                 for (item in matrix) {
                     if (item == null) continue
-                    val inputType = DrawerItemFactory.getDrawerType(item) ?: continue
+                    if (!DrawerItemFactory.isDrawerMaterial(item.type)) continue
+
+                    // ドロワー素材がグリッドにあるが、PDCタグがない（通常のバレル）→ 拒否
+                    val inputType = DrawerItemFactory.getDrawerType(item)
+                    if (inputType == null) {
+                        event.inventory.result = null
+                        return
+                    }
 
                     val expectedTier = resultDrawerType.tier - 1
                     if (inputType.tier != expectedTier) {
