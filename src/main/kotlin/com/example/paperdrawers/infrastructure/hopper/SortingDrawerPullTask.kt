@@ -49,6 +49,10 @@ class SortingDrawerPullTask(
                 val drawer = repository.findByLocation(location) ?: continue
                 if (drawer.type == DrawerType.VOID) continue
 
+                // レッドストーン信号を受けている仕分けドロワーは吸い取りを停止
+                val block = location.block
+                if (block.isBlockPowered || block.isBlockIndirectlyPowered) continue
+
                 tryPullFromAdjacentHoppers(drawer)
             } catch (e: Exception) {
                 logger.fine("Failed to process sorting pull at $location: ${e.message}")

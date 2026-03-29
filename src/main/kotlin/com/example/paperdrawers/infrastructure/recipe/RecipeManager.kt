@@ -130,25 +130,21 @@ class RecipeManager(
             logger.warning("Failed to register void drawer recipe: ${e.message}")
         }
 
-        // Register sorting drawer recipes
-        var sortingRegistered = 0
-        for (tier in VALID_TIER_RANGE) {
-            val sortingKey = "sorting-tier-$tier"
-            val sortingSection = configSection.getConfigurationSection(sortingKey)
-
-            if (sortingSection == null || !sortingSection.getBoolean("enabled", true)) {
-                continue
+        // Register single sorting drawer recipe
+        // Why: 全ティアの仕分けレシピは同一素材構成（COMPARATOR + BARREL + HOPPER）のため、
+        // Bukkit は最初にマッチしたレシピのみ選択する。1つのレシピを登録し、
+        // DrawerCraftListener で入力ドロワーの Tier に応じて結果を動的に決定する。
+        try {
+            val sortingSection = configSection.getConfigurationSection("sorting")
+                ?: configSection.getConfigurationSection("sorting-tier-1")
+            if (sortingSection != null && sortingSection.getBoolean("enabled", true)) {
+                registerUnifiedSortingRecipe(sortingSection)
             }
-
-            try {
-                registerSortingRecipe(tier, sortingSection)
-                sortingRegistered++
-            } catch (e: Exception) {
-                logger.warning("Failed to register sorting recipe for $sortingKey: ${e.message}")
-            }
+        } catch (e: Exception) {
+            logger.warning("Failed to register sorting drawer recipe: ${e.message}")
         }
 
-        logger.fine("Recipes registered: $registeredCount (+ $sortingRegistered sorting), skipped: $skippedCount")
+        logger.fine("Recipes registered: $registeredCount, skipped: $skippedCount")
     }
 
     /**
@@ -346,20 +342,20 @@ class RecipeManager(
     }
 
     /**
-     * 仕分けドロワーのクラフトレシピを登録する。
+     * 統合仕分けドロワーレシピを1つ登録する。
      *
-     * Why: 各Tierのドロワーをコンパレータとホッパーで仕分けドロワーに変換するレシピ。
-     * 結果アイテムは仕分けフラグ付きのドロワーアイテムとなる。
-     * コンテンツの引き継ぎは DrawerCraftListener の PrepareItemCraftEvent で処理する。
+     * Why: 全ティアの仕分けレシピは同一素材構成（COMPARATOR + BARREL + HOPPER）のため、
+     * Bukkit は最初にマッチしたレシピしか選択できない。
+     * 1つのレシピを登録し、DrawerCraftListener で入力ドロワーの Tier に応じて
+     * 結果を動的に決定することで全ティアに対応する。
      *
-     * @param tier Tierレベル（1-7）
-     * @param section このTierの仕分けレシピ設定セクション
+     * @param section 仕分けレシピの設定セクション（sorting または sorting-tier-1）
      */
-    private fun registerSortingRecipe(tier: Int, section: ConfigurationSection) {
-        val drawerType = DrawerType.fromTier(tier)
-        val resultItem = DrawerItemFactory.createDrawerItem(drawerType, 1, isSorting = true)
+    private fun registerUnifiedSortingRecipe(section: ConfigurationSection) {
+        // Tier 1 をデフォルト結果として登録（実際の結果は DrawerCraftListener が動的に設定）
+        val resultItem = DrawerItemFactory.createDrawerItem(DrawerType.fromTier(1), 1, isSorting = true)
 
-        val key = NamespacedKey(plugin, "drawer_sorting_tier_$tier")
+        val key = NamespacedKey(plugin, "drawer_sorting")
         val recipe = ShapedRecipe(key, resultItem)
 
         val shapeList = section.getStringList("shape")
@@ -371,44 +367,25 @@ class RecipeManager(
         recipe.shape(*shapeList.toTypedArray())
 
         val ingredientsSection = section.getConfigurationSection("ingredients")
-            ?: throw IllegalArgumentException("No 'ingredients' section found for sorting-tier-$tier")
+            ?: throw IllegalArgumentException("No 'ingredients' section found for sorting recipe")
 
         for (charKey in ingredientsSection.getKeys(false)) {
-            if (charKey.length != 1) {
-                logger.warning("Invalid ingredient key '$charKey' in sorting-tier-$tier recipe, skipping.")
-                continue
-            }
+            if (charKey.length != 1) continue
 
             val ingredientChar = charKey[0]
             val materialString = ingredientsSection.getString(charKey)
-                ?: throw IllegalStateException("Ingredient value for '$charKey' is null in sorting-tier-$tier")
+                ?: throw IllegalStateException("Ingredient value for '$charKey' is null in sorting recipe")
 
             val recipeChoice = resolveIngredient(materialString)
-                ?: throw IllegalStateException(
-                    "Failed to resolve ingredient '$materialString' for sorting-tier-$tier"
-                )
+                ?: throw IllegalStateException("Failed to resolve ingredient '$materialString' for sorting recipe")
 
             recipe.setIngredient(ingredientChar, recipeChoice)
-
-            val trimmedMaterial = materialString.trim()
-            if (trimmedMaterial.startsWith(DRAWER_INGREDIENT_PREFIX)) {
-                val requiredTier = trimmedMaterial.removePrefix(DRAWER_INGREDIENT_PREFIX).toIntOrNull()
-                if (requiredTier != null) {
-                    _drawerIngredientRequirements.add(
-                        DrawerIngredientRequirement(
-                            recipeKey = key,
-                            ingredientChar = ingredientChar,
-                            requiredTier = requiredTier
-                        )
-                    )
-                }
-            }
         }
 
         plugin.server.addRecipe(recipe)
         _registeredKeys.add(key)
         _sortingRecipeKeys.add(key)
-        logger.fine("Registered sorting recipe for tier-$tier (key: ${key.key})")
+        logger.fine("Registered unified sorting drawer recipe (key: ${key.key})")
     }
 
     /**

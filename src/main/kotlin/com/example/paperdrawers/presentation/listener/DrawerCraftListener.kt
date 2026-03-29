@@ -40,6 +40,15 @@ class DrawerCraftListener(
 
         val matrix = event.inventory.matrix
         val shape = recipe.shape
+        val isSortingRecipe = recipeManager.isSortingRecipe(recipe.key)
+
+        // === 仕分けドロワーレシピ: 入力 Tier に応じた結果を動的に設定 ===
+        // Why: 全ティアの仕分けレシピは同一素材構成のため1つのレシピで全 Tier をカバーする。
+        // Tier の検証は不要（どの Tier のドロワーでも仕分けドロワーに変換可能）。
+        if (isSortingRecipe) {
+            handleSortingRecipeResult(event, matrix)
+            return
+        }
 
         // === Phase 1: レシピキーベースの Tier バリデーション ===
         val requirements = recipeManager.drawerIngredientRequirements
@@ -65,22 +74,15 @@ class DrawerCraftListener(
         }
 
         // === Phase 2: 汎用ドロワー Tier バリデーション（Phase 1 の安全ネット） ===
-        // レシピキーの不一致等で Phase 1 がスキップされても、
-        // クラフトグリッド内のドロワーの Tier を結果アイテムに対して検証する
         val resultItem = event.inventory.result
         if (resultItem != null) {
             val resultDrawerType = DrawerItemFactory.getDrawerType(resultItem)
             if (resultDrawerType != null) {
-                val isSortingResult = DrawerItemFactory.isSortingDrawer(resultItem)
-
                 for (item in matrix) {
                     if (item == null) continue
                     val inputType = DrawerItemFactory.getDrawerType(item) ?: continue
 
-                    // 仕分けレシピ: 同じ Tier が必要
-                    // アップグレードレシピ: 1つ下の Tier が必要
-                    val expectedTier = if (isSortingResult) resultDrawerType.tier else resultDrawerType.tier - 1
-
+                    val expectedTier = resultDrawerType.tier - 1
                     if (inputType.tier != expectedTier) {
                         logger.fine("DrawerCraftListener: Tier mismatch - input=${inputType.tier}, expected=$expectedTier, result=${resultDrawerType.tier}")
                         event.inventory.result = null
@@ -89,27 +91,34 @@ class DrawerCraftListener(
                 }
             }
         }
-
-        // === Phase 3: 仕分けドロワーレシピの中身引き継ぎ ===
-        if (recipeManager.isSortingRecipe(recipe.key)) {
-            handleSortingRecipeResult(event, matrix)
-        }
     }
 
     /**
-     * 仕分けドロワーレシピの結果アイテムに元ドロワーの中身を引き継ぐ。
+     * 仕分けドロワーレシピの結果を入力ドロワーの Tier に応じて動的に設定する。
      *
-     * Why: 仕分けドロワーへの変換時に格納アイテムを失わないようにするため、
-     * クラフトグリッド内のドロワーアイテムから中身を読み取り、
-     * 仕分けドロワーアイテムにコピーする。
+     * Why: 統合仕分けレシピは1つのレシピで全 Tier をカバーする。
+     * 入力ドロワーの Tier を読み取り、同じ Tier の仕分けドロワーを結果として設定する。
+     * 元ドロワーに中身がある場合はそれも引き継ぐ。
      */
     private fun handleSortingRecipeResult(event: PrepareItemCraftEvent, matrix: Array<out ItemStack?>) {
         val drawerItem = matrix.filterNotNull().firstOrNull { DrawerItemFactory.isDrawerItem(it) }
-            ?: return
+        if (drawerItem == null) {
+            event.inventory.result = null
+            return
+        }
 
+        val inputType = DrawerItemFactory.getDrawerType(drawerItem)
+        if (inputType == null) {
+            event.inventory.result = null
+            return
+        }
+
+        // 入力ドロワーの Tier に応じた仕分けドロワーを作成
         val result = DrawerItemFactory.convertToSortingDrawer(drawerItem)
         if (result != null) {
             event.inventory.result = result
+        } else {
+            event.inventory.result = null
         }
     }
 }

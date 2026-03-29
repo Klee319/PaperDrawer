@@ -89,9 +89,10 @@ recipes:
       O: OBSIDIAN
       E: ENDER_PEARL
       C: CHEST
-  # 仕分けドロワーレシピ / Sorting drawer recipes
-  # ドロワーをコンパレータとホッパーで囲むことで仕分けドロワーに変換
-  sorting-tier-1:
+  # 仕分けドロワーレシピ / Sorting drawer recipe
+  # どのティアのドロワーでも仕分けドロワーに変換可能（入力ティアが維持される）
+  # D にはどのティアのドロワーでも配置可能
+  sorting:
     enabled: true
     shape:
       - " C "
@@ -100,64 +101,4 @@ recipes:
     ingredients:
       C: COMPARATOR
       D: PAPER_DRAWERS_TIER_1
-      H: HOPPER
-  sorting-tier-2:
-    enabled: true
-    shape:
-      - " C "
-      - " D "
-      - " H "
-    ingredients:
-      C: COMPARATOR
-      D: PAPER_DRAWERS_TIER_2
-      H: HOPPER
-  sorting-tier-3:
-    enabled: true
-    shape:
-      - " C "
-      - " D "
-      - " H "
-    ingredients:
-      C: COMPARATOR
-      D: PAPER_DRAWERS_TIER_3
-      H: HOPPER
-  sorting-tier-4:
-    enabled: true
-    shape:
-      - " C "
-      - " D "
-      - " H "
-    ingredients:
-      C: COMPARATOR
-      D: PAPER_DRAWERS_TIER_4
-      H: HOPPER
-  sorting-tier-5:
-    enabled: true
-    shape:
-      - " C "
-      - " D "
-      - " H "
-    ingredients:
-      C: COMPARATOR
-      D: PAPER_DRAWERS_TIER_5
-      H: HOPPER
-  sorting-tier-6:
-    enabled: true
-    shape:
-      - " C "
-      - " D "
-      - " H "
-    ingredients:
-      C: COMPARATOR
-      D: PAPER_DRAWERS_TIER_6
-      H: HOPPER
-  sorting-tier-7:
-    enabled: false
-    shape:
-      - " C "
-      - " D "
-      - " H "
-    ingredients:
-      C: COMPARATOR
-      D: PAPER_DRAWERS_TIER_7
       H: HOPPER
