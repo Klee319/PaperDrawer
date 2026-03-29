@@ -125,6 +125,9 @@ class HopperPullTask(
      * 競合してアイテム消失を引き起こす。ホッパーインベントリの直接操作で安全に転送する。
      */
     private fun tryPushFromHoppers(drawer: DrawerBlock) {
+        // 仕分けドロワーへの搬入は SortingDrawerPullTask が設定済みスロットのみに
+        // フィルタリングして行うため、ここではスキップする
+        if (drawer.isSorting) return
         for (face in PUSH_CHECK_FACES) {
             val adjacentBlock = drawer.location.block.getRelative(face)
             if (adjacentBlock.type != Material.HOPPER) continue
