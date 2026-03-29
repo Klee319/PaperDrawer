@@ -71,7 +71,6 @@ class HopperPullTask(
      */
     private fun tryPullToHopper(drawer: DrawerBlock) {
         if (drawer.type == DrawerType.VOID) return
-        if (drawer.isSorting) return  // 仕分けドロワーは排出しない
         if (drawer.isEmpty()) return
 
         val belowBlock = drawer.location.clone().subtract(0.0, 1.0, 0.0).block

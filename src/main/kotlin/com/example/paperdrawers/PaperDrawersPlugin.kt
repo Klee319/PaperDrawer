@@ -100,6 +100,7 @@ class PaperDrawersPlugin : JavaPlugin() {
      */
     private var hopperPullTask: BukkitTask? = null
     private var sortingPullTask: BukkitTask? = null
+    private var sortingPullTaskInstance: SortingDrawerPullTask? = null
 
 
     /**
@@ -458,9 +459,13 @@ class PaperDrawersPlugin : JavaPlugin() {
             )
         }
 
-        // HopperInteractionListener を登録（ホッパーからドロワーへのアイテム搬入）
+        // HopperInteractionListener を登録（バニラ転送ブロック + 仕分けドロワーイベント駆動）
+        // Why: sortingPullTaskInstance が null の場合は startBackgroundTasks() で初期化される前なので、
+        // ここで先に作成して両方に共有する
+        val sortingTask = SortingDrawerPullTask(drawerRepository, displayManager, this, logger)
+        sortingPullTaskInstance = sortingTask
         server.pluginManager.registerEvents(
-            HopperInteractionListener(drawerRepository, logger),
+            HopperInteractionListener(drawerRepository, sortingTask, this, logger),
             this
         )
 
@@ -516,14 +521,19 @@ class PaperDrawersPlugin : JavaPlugin() {
             logger.fine("Hopper pull task started (interval: ${hopperInterval} ticks)")
         }
 
-        // Start sorting drawer pull task (every tick for fast item capture)
+        // Start sorting drawer pull task (4 tick fallback for player-placed items)
+        // イベント駆動が主でポーリングはフォールバック
+        val sortingTask = sortingPullTaskInstance
+            ?: SortingDrawerPullTask(drawerRepository, displayManager, this, logger).also {
+                sortingPullTaskInstance = it
+            }
         sortingPullTask = server.scheduler.runTaskTimer(
             this,
-            SortingDrawerPullTask(drawerRepository, displayManager, this, logger),
-            1L,
-            1L
+            sortingTask,
+            4L,
+            4L
         )
-        logger.fine("Sorting drawer pull task started (interval: 1 tick)")
+        logger.fine("Sorting drawer pull task started (interval: 4 ticks, event-driven primary)")
     }
 
     /**
