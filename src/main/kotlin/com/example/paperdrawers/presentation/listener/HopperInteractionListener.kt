@@ -69,6 +69,18 @@ class HopperInteractionListener(
         }
         if (destLocation != null && repository.findByLocation(destLocation) != null) {
             event.isCancelled = true
+            // バニラインベントリにアイテムが漏れた場合に備えてクリーンアップ
+            // Why: Paper のホッパー最適化がイベントキャンセル前にアイテムを配置する場合がある
+            plugin.server.scheduler.runTask(plugin, Runnable {
+                val block = destLocation.block
+                val state = block.state
+                if (state is org.bukkit.block.Container) {
+                    val inv = state.inventory
+                    if (!inv.isEmpty) {
+                        inv.clear()
+                    }
+                }
+            })
             return
         }
 

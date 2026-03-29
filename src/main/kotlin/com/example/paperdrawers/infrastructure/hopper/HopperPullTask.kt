@@ -91,17 +91,18 @@ class HopperPullTask(
         val (extractedItem, updatedDrawer) = drawer.extractItemStack(slot.index, 1)
         if (extractedItem == null) return
 
-        val leftover = hopperInventory.addItem(extractedItem)
-        if (leftover.isNotEmpty()) {
-            val leftoverItem = leftover.values.first()
-            val (reInsertResult, reInsertedDrawer) = updatedDrawer.insertItemStack(slot.index, leftoverItem)
+        // Why: addItem() は Paper 内部で "over-fill" 警告を出す場合があるため、
+        // 手動でスロットを検索して setItem で配置する
+        val placed = placeItemInInventory(hopperInventory, extractedItem)
+        if (!placed) {
+            // ホッパーに入らなかった → ドロワーに戻す
+            val (reInsertResult, reInsertedDrawer) = updatedDrawer.insertItemStack(slot.index, extractedItem)
             if (!reInsertResult.success) {
                 val world = drawer.location.world
                 if (world != null) {
-                    val dropLoc = drawer.location.clone().add(0.5, 1.0, 0.5)
-                    world.dropItemNaturally(dropLoc, leftoverItem)
+                    world.dropItemNaturally(drawer.location.clone().add(0.5, 1.0, 0.5), extractedItem)
                 }
-                logger.warning("[ITEM RECOVERY] Dropped ${leftoverItem.type} x${leftoverItem.amount} at ${drawer.getLocationKey()} (re-insert failed)")
+                logger.warning("[ITEM RECOVERY] Dropped ${extractedItem.type} x${extractedItem.amount} at ${drawer.getLocationKey()} (re-insert failed)")
                 repository.save(updatedDrawer)
             } else {
                 repository.save(reInsertedDrawer)
@@ -194,6 +195,35 @@ class HopperPullTask(
                     displayManager.updateSlotDisplay(updatedDrawer, slot.index)
                     return true
                 }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Inventory.addItem() を使わずに手動でアイテムを配置する。
+     *
+     * Why: Paper の addItem() は内部で "Tried to over-fill a container" 警告を
+     * 出す場合がある。setItem() で直接配置することで警告を回避する。
+     *
+     * @return 配置成功した場合 true
+     */
+    private fun placeItemInInventory(inventory: Inventory, item: org.bukkit.inventory.ItemStack): Boolean {
+        // 既存のスタックにマージ
+        for (i in 0 until inventory.size) {
+            val content = inventory.getItem(i) ?: continue
+            if (content.isSimilar(item) && content.amount < content.maxStackSize) {
+                val newAmount = minOf(content.amount + item.amount, content.maxStackSize)
+                inventory.setItem(i, content.clone().apply { amount = newAmount })
+                return true
+            }
+        }
+        // 空スロットに配置
+        for (i in 0 until inventory.size) {
+            val content = inventory.getItem(i)
+            if (content == null || content.type.isAir) {
+                inventory.setItem(i, item.clone())
+                return true
             }
         }
         return false
